@@ -23,84 +23,90 @@
 
 JTAG::JTAG()
 {
-	DDRD &= ~_BV(VREF);
-	DDRD &= ~_BV(TDO);
-	DDRD |= _BV(TDI);
-	DDRD |= _BV(TMS);
-	DDRD |= _BV(TCK);
-
-	// Do not power the target via I/O leakage
-	clrBit(VREF);
-	clrBit(TCK);
-	clrBit(TDI);
-	clrBit(TMS);
-	// Wait for Vref since we don't have reset pin - this is
-	// an alternative that does not require power switch/relay.
-	// TODO: Power cycle via high side switch/relay
-	serialWrite("Waiting for Vref to get high - enable power to target manually:\r\n");
-	while (!getBit(VREF)) {
-		_delay_us(100);
-	}
-	serialWrite("Vref is now high - resuming\r\n");
+	// Set all pins to Hi-Z/Input initially
+	DDRD &= ~_BV(PIN_VREF);
+	DDRD &= ~_BV(PIN_TDO);
+	DDRD &= ~_BV(PIN_TDI);
+	DDRD &= ~_BV(PIN_TMS);
+	DDRD &= ~_BV(PIN_TCK);
 }
 
 void JTAG::connect()
 {
-	setBit(TCK);
-	setBit(TDI);
-	setBit(TMS);
+	// Wait for Vref since we don't have reset pin - this is
+	// an alternative that does not require power switch/relay.
+	// TODO: Power cycle via high side switch/relay
+	serialWrite("Waiting for Vref to get high - enable power to target manually:\r\n");
+	while (!getBit(PIN_VREF)) {
+		_delay_us(100);
+	}
+	serialWrite("Vref is now high - resuming\r\n");
+
+	// Configure output pins after Vref check passes
+	DDRD |= _BV(PIN_TDI);
+	DDRD |= _BV(PIN_TMS);
+	DDRD |= _BV(PIN_TCK);
+
+	// Do not power the target via I/O leakage
+	clrBit(PIN_TCK);
+	clrBit(PIN_TDI);
+	clrBit(PIN_TMS);
+
+	setBit(PIN_TCK);
+	setBit(PIN_TDI);
+	setBit(PIN_TMS);
 
 	_delay_us(500);
 
-	clrBit(TCK);
+	clrBit(PIN_TCK);
 	_delay_us(1);
-	setBit(TCK);
+	setBit(PIN_TCK);
 	_delay_us(50);
 
 	for (uint8_t n = 0; n < 165; ++n)
 	{
-		clrBit(TMS);
+		clrBit(PIN_TMS);
 		_delay_us(2);
-		setBit(TMS);
+		setBit(PIN_TMS);
 		_delay_us(2);
 	}
 
 	for (uint8_t n = 0; n < 105; ++n)
 	{
-		clrBit(TDI);
+		clrBit(PIN_TDI);
 		_delay_us(2);
-		setBit(TDI);
+		setBit(PIN_TDI);
 		_delay_us(2);
 	}
 
 	for (uint8_t n = 0; n < 90; ++n)
 	{
-		clrBit(TCK);
+		clrBit(PIN_TCK);
 		_delay_us(2);
-		setBit(TCK);
+		setBit(PIN_TCK);
 		_delay_us(2);
 	}
 
 	for (uint16_t n = 0; n < 25600; ++n)
 	{
-		clrBit(TMS);
+		clrBit(PIN_TMS);
 		_delay_us(2);
-		setBit(TMS);
+		setBit(PIN_TMS);
 		_delay_us(2);
 	}
 
 	_delay_us(8);
 
-	clrBit(TMS);
+	clrBit(PIN_TMS);
 
 	m_mode = Mode::ICP;
 	startMode();
 
 	for (uint16_t n = 0; n < 25600; ++n)
 	{
-		setBit(TCK);
+		setBit(PIN_TCK);
 		_delay_us(2);
-		clrBit(TCK);
+		clrBit(PIN_TCK);
 		_delay_us(2);
 	}
 
@@ -110,7 +116,7 @@ void JTAG::connect()
 void JTAG::disconnect()
 {
 	// for debugging purposes it's convenient to leave connection in ICP mode as it will survive host reset/upload
-	// (TCK must be held high in READY state, if it's set low during host reset/upload, target will disconnect)
+	// (PIN_TCK must be held high in READY state, if it's set low during host reset/upload, target will disconnect)
 	switchMode(Mode::ICP);
 }
 
@@ -125,17 +131,17 @@ void JTAG::reset()
 		for (uint8_t n = 0; n < 35; ++n)
 			nextState(1);
 
-		setBit(TCK);
+		setBit(PIN_TCK);
 
-		clrBit(TMS);
+		clrBit(PIN_TMS);
 	}
 	else
 	{
-		setBit(TCK);
+		setBit(PIN_TCK);
 
-		setBit(TMS);
+		setBit(PIN_TMS);
 		_delay_us(2);
-		clrBit(TMS);
+		clrBit(PIN_TMS);
 		_delay_us(2);
 	}
 
@@ -196,30 +202,30 @@ void JTAG::switchMode(Mode mode)
 
 void JTAG::startMode() const
 {
-	clrBit(TCK);
+	clrBit(PIN_TCK);
 	_delay_us(2);
 
 	for (uint8_t m = 0x80; m; m >>= 1)
 	{
 		if (uint8_t(m_mode) & m)
-			setBit(TDI);
+			setBit(PIN_TDI);
 		else
-			clrBit(TDI);
+			clrBit(PIN_TDI);
 
-		setBit(TCK);
+		setBit(PIN_TCK);
 		_delay_us(2);
-		clrBit(TCK);
+		clrBit(PIN_TCK);
 		_delay_us(2);
 	}
 
-	setBit(TCK);
+	setBit(PIN_TCK);
 	_delay_us(2);
-	clrBit(TCK);
+	clrBit(PIN_TCK);
 	_delay_us(2);
 
-	setBit(TCK);
+	setBit(PIN_TCK);
 	_delay_us(2);
-	clrBit(TCK);
+	clrBit(PIN_TCK);
 	_delay_us(2);
 }
 
@@ -368,16 +374,16 @@ void JTAG::sendICPData(uint8_t value)
 	for (uint8_t m = 0x80; m; m >>= 1)
 	{
 		if (value & m)
-			setBit(TDI);
+			setBit(PIN_TDI);
 		else
-			clrBit(TDI);
+			clrBit(PIN_TDI);
 
 		pulseClock();
 	}
 
 	pulseClock();
 
-	clrBit(TDI);
+	clrBit(PIN_TDI);
 }
 
 uint8_t JTAG::receiveICPData()
@@ -387,7 +393,7 @@ uint8_t JTAG::receiveICPData()
 	{
 		pulseClock();
 
-		if (getBit(TDO))
+		if (getBit(PIN_TDO))
 			value |= m;
 	}
 
@@ -399,16 +405,16 @@ uint8_t JTAG::receiveICPData()
 bool JTAG::nextState(bool tms)
 {
 	if (tms)
-		setBit(TMS);
+		setBit(PIN_TMS);
 	else
-		clrBit(TMS);
+		clrBit(PIN_TMS);
 
-	setBit(TCK);
+	setBit(PIN_TCK);
 	_delay_us(2);
 
-	bool b = getBit(TDO);
+	bool b = getBit(PIN_TDO);
 
-	clrBit(TCK);
+	clrBit(PIN_TCK);
 	_delay_us(2);
 
 	return b;
@@ -417,9 +423,9 @@ bool JTAG::nextState(bool tms)
 bool JTAG::nextState(bool tms, bool out)
 {
 	if (out)
-		setBit(TDI);
+		setBit(PIN_TDI);
 	else
-		clrBit(TDI);
+		clrBit(PIN_TDI);
 
 	return nextState(tms);
 }
@@ -427,9 +433,9 @@ bool JTAG::nextState(bool tms, bool out)
 void JTAG::pulseClock()
 {
 	_delay_us(1);
-	setBit(TCK);
+	setBit(PIN_TCK);
 	_delay_us(1);
-	clrBit(TCK);
+	clrBit(PIN_TCK);
 }
 
 void JTAG::pulseClocks(uint8_t count)

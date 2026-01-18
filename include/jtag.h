@@ -33,12 +33,6 @@ class JTAG
 public:
 	JTAG();
 
-	static const uint8_t TDO = 2;	// D2
-	static const uint8_t TMS = 3;	// D3
-	static const uint8_t TDI = 4;	// D4
-	static const uint8_t TCK = 5;	// D5
-	static const uint8_t VREF = 6;	// D6
-
 	void connect();
 	void disconnect();
 
