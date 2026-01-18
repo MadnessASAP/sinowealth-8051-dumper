@@ -18,3 +18,10 @@
 #if CHIP_FLASH_SIZE > CHIP_FLASH_SIZE_MAX
 #error Chip flash size is not valid for this chip type
 #endif
+
+// IO Pin Configuration for JTAG interface
+#define PIN_TDO		2	// D2
+#define PIN_TMS		3	// D3
+#define PIN_TDI		4	// D4
+#define PIN_TCK		5	// D5
+#define PIN_VREF	6	// D6
