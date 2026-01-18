@@ -232,26 +232,28 @@ unsigned char rpc_getCustomBlock() {
 
 void rpc_loop() {
     // SimpleRPC interface - automatically handles RPC calls
+    // Format: function, "documentation" pairs (use F() to store strings in flash)
     interface(
-        rpc_connect, "connect", "Connect to target device: @return: Success status.",
-        rpc_disconnect, "disconnect", "Disconnect from target device.",
-        rpc_checkICP, "checkICP", "Check if ICP mode is working: @return: True if ICP communication is successful.",
-        rpc_checkJTAG, "checkJTAG", "Check if JTAG mode is working: @return: True if JTAG communication is successful.",
-        rpc_getID, "getID", "Get JTAG ID code: @return: 16-bit ID code.",
-        rpc_pingICP, "pingICP", "Send ping to device in ICP mode.",
-        rpc_readByteICP, "readByteICP", "Read single byte via ICP: @address: Address. @customBlock: Custom block flag. @return: Byte value.",
-        rpc_readByteJTAG, "readByteJTAG", "Read single byte via JTAG: @address: Address. @customBlock: Custom block flag. @return: Byte value.",
-        rpc_read16ICP, "read16ICP", "Read 16 bytes via ICP to buffer: @address: Address. @customBlock: Custom block flag. @return: Success status.",
-        rpc_read16JTAG, "read16JTAG", "Read 16 bytes via JTAG to buffer: @address: Address. @customBlock: Custom block flag. @return: Success status.",
-        rpc_getBufferByte, "getBufferByte", "Get byte from buffer: @index: Buffer index. @return: Byte value.",
-        rpc_detectReadMethod, "detectReadMethod", "Auto-detect best read method: @return: 0=failed, 1=ICP, 2=JTAG.",
-        rpc_getProductBlockAddress, "getProductBlockAddress", "Get product block address: @return: Address or 0.",
-        rpc_getCodeOptionsAddress, "getCodeOptionsAddress", "Get code options address: @return: Address.",
-        rpc_getCodeOptionsSize, "getCodeOptionsSize", "Get code options size: @return: Size in bytes.",
-        rpc_getCodeOptionsInFlash, "getCodeOptionsInFlash", "Check if options in flash: @return: True if in flash.",
-        rpc_getChipType, "getChipType", "Get chip type: @return: Chip type.",
-        rpc_getFlashSize, "getFlashSize", "Get flash size: @return: Flash size in bytes.",
-        rpc_getProductBlock, "getProductBlock", "Get product block flag: @return: Product block flag.",
-        rpc_getCustomBlock, "getCustomBlock", "Get custom block type: @return: Custom block type."
+        Serial,
+        rpc_connect, F("connect: Connect to target device. @return: Success status."),
+        rpc_disconnect, F("disconnect: Disconnect from target device."),
+        rpc_checkICP, F("checkICP: Check if ICP mode is working. @return: True if successful."),
+        rpc_checkJTAG, F("checkJTAG: Check if JTAG mode is working. @return: True if successful."),
+        rpc_getID, F("getID: Get JTAG ID code. @return: 16-bit ID code."),
+        rpc_pingICP, F("pingICP: Send ping to device in ICP mode."),
+        rpc_readByteICP, F("readByteICP: Read byte via ICP. @address: Addr. @customBlock: Flag. @return: Byte."),
+        rpc_readByteJTAG, F("readByteJTAG: Read byte via JTAG. @address: Addr. @customBlock: Flag. @return: Byte."),
+        rpc_read16ICP, F("read16ICP: Read 16 bytes via ICP. @address: Addr. @customBlock: Flag. @return: OK."),
+        rpc_read16JTAG, F("read16JTAG: Read 16 bytes via JTAG. @address: Addr. @customBlock: Flag. @return: OK."),
+        rpc_getBufferByte, F("getBufferByte: Get byte from buffer. @index: Index. @return: Byte."),
+        rpc_detectReadMethod, F("detectReadMethod: Auto-detect read method. @return: 0=fail, 1=ICP, 2=JTAG."),
+        rpc_getProductBlockAddress, F("getProductBlockAddress: Get product block address. @return: Address."),
+        rpc_getCodeOptionsAddress, F("getCodeOptionsAddress: Get code options address. @return: Address."),
+        rpc_getCodeOptionsSize, F("getCodeOptionsSize: Get code options size. @return: Size."),
+        rpc_getCodeOptionsInFlash, F("getCodeOptionsInFlash: Check if options in flash. @return: Bool."),
+        rpc_getChipType, F("getChipType: Get chip type. @return: Chip type."),
+        rpc_getFlashSize, F("getFlashSize: Get flash size. @return: Size in bytes."),
+        rpc_getProductBlock, F("getProductBlock: Get product block flag. @return: Flag."),
+        rpc_getCustomBlock, F("getCustomBlock: Get custom block type. @return: Type.")
     );
 }

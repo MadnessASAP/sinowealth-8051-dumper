@@ -18,6 +18,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include "config.h"
 
 #define clrBit(b) (PORTD &= ~_BV(b))
 #define setBit(b) (PORTD |= _BV(b))
@@ -92,7 +93,7 @@ private:
 			value >>= 1;
 		}
 
-		clrBit(TDI);
+		clrBit(PIN_TDI);
 	}
 
 	template <uint8_t N, typename T>
