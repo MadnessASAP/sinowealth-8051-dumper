@@ -23,17 +23,16 @@
 
 JTAG::JTAG()
 {
+	// Set all pins to Hi-Z/Input initially
 	DDRD &= ~_BV(PIN_VREF);
 	DDRD &= ~_BV(PIN_TDO);
-	DDRD |= _BV(PIN_TDI);
-	DDRD |= _BV(PIN_TMS);
-	DDRD |= _BV(PIN_TCK);
+	DDRD &= ~_BV(PIN_TDI);
+	DDRD &= ~_BV(PIN_TMS);
+	DDRD &= ~_BV(PIN_TCK);
+}
 
-	// Do not power the target via I/O leakage
-	clrBit(PIN_VREF);
-	clrBit(PIN_TCK);
-	clrBit(PIN_TDI);
-	clrBit(PIN_TMS);
+void JTAG::connect()
+{
 	// Wait for Vref since we don't have reset pin - this is
 	// an alternative that does not require power switch/relay.
 	// TODO: Power cycle via high side switch/relay
@@ -42,10 +41,17 @@ JTAG::JTAG()
 		_delay_us(100);
 	}
 	serialWrite("Vref is now high - resuming\r\n");
-}
 
-void JTAG::connect()
-{
+	// Configure output pins after Vref check passes
+	DDRD |= _BV(PIN_TDI);
+	DDRD |= _BV(PIN_TMS);
+	DDRD |= _BV(PIN_TCK);
+
+	// Do not power the target via I/O leakage
+	clrBit(PIN_TCK);
+	clrBit(PIN_TDI);
+	clrBit(PIN_TMS);
+
 	setBit(PIN_TCK);
 	setBit(PIN_TDI);
 	setBit(PIN_TMS);
