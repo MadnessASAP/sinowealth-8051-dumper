@@ -14,138 +14,330 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <Arduino.h>
+#include <simpleRPC.h>
 #include "jtag.h"
-#include "serial.h"
 #include "config.h"
 
-uint8_t buffer[16] = {};
+// Global JTAG instance
+JTAG* jtag = nullptr;
+uint8_t buffer[256] = {};  // Increased buffer size for larger reads
 
-int main()
-{
-	serialInit();
-	serialWrite("\r\nSinoWealth 8051-based MCU flash dumper\r\n");
+// RPC Functions
 
-	JTAG jtag;
-	jtag.connect();
+/**
+ * Connect to the target device via JTAG
+ * Returns true if connection was successful
+ */
+bool rpc_connect() {
+    if (!jtag) {
+        jtag = new JTAG();
+    }
+    jtag->connect();
+    return true;
+}
 
-	if (jtag.checkICP())
-	{
-		serialWrite("Connection established\r\n");
+/**
+ * Disconnect from the target device
+ */
+void rpc_disconnect() {
+    if (jtag) {
+        jtag->disconnect();
+    }
+}
 
-		// wait for terminal connected and user ready
-		serialWrite("\r\nPress ENTER to proceed\r\n");
-		while (!serialWait());
+/**
+ * Check if ICP mode is working
+ * Returns true if ICP communication is successful
+ */
+bool rpc_checkICP() {
+    if (!jtag) {
+        return false;
+    }
+    return jtag->checkICP();
+}
 
-		serialWrite("\r\nJTAG ID: ");
-		uint16_t id = jtag.getID();
-		serialWriteHex(id >> 8);
-		serialWriteHex(id & 0xFF);
-		serialWrite("\r\n");
+/**
+ * Check if JTAG mode is working
+ * Returns true if JTAG communication is successful
+ */
+bool rpc_checkJTAG() {
+    if (!jtag) {
+        return false;
+    }
+    return jtag->checkJTAG();
+}
 
-#if CHIP_PRODUCT_BLOCK == 1
-		serialWrite("\r\nDumping part number:\r\n");
+/**
+ * Get the JTAG ID code from the device
+ * Returns the 16-bit ID code
+ */
+unsigned int rpc_getID() {
+    if (!jtag) {
+        return 0;
+    }
+    return jtag->getID();
+}
 
-		uint16_t custom_block_address = 0;
-		switch (CHIP_CUSTOM_BLOCK)
-		{
-			case 2:
-				custom_block_address = 0x0A00;
-				break;
-			case 3:
-				custom_block_address = 0x1200;
-				break;
-			case 4:
-				custom_block_address = 0x2200;
-				break;
-		}
+/**
+ * Send a ping to the device in ICP mode
+ */
+void rpc_pingICP() {
+    if (jtag) {
+        jtag->pingICP();
+    }
+}
 
-		jtag.readFlashICP(buffer, sizeof(buffer), custom_block_address, true);
-		for (uint8_t n = 0; n < 5; ++n)
-			serialWriteHex(buffer[n + 9]);
-		serialWrite("\r\n");
-#endif
+/**
+ * Read a single byte from flash using ICP mode
+ * Returns the byte value or 0xFF on error
+ */
+unsigned char rpc_readByteICP(unsigned long address, bool customBlock) {
+    if (!jtag) {
+        return 0xFF;
+    }
 
-#if CHIP_CUSTOM_BLOCK > 0
-		serialWrite("\r\nDumping code options:\r\n");
+    uint8_t byte = 0xFF;
+    if (jtag->readFlashICP(&byte, 1, address, customBlock)) {
+        return byte;
+    }
+    return 0xFF;
+}
 
-		uint16_t options_size = 64;
-		uint16_t options_address = CHIP_FLASH_SIZE - options_size;
-		bool options_in_flash = true;
-		switch (CHIP_CUSTOM_BLOCK)
-		{
-			case 2:
-				if (CHIP_TYPE == 2)
-					options_address = 0x0800, options_in_flash = false;
-				break;
-			case 3:
-				if (CHIP_TYPE == 2)
-					options_address = 0x1000, options_in_flash = false;
-				else if (CHIP_TYPE == 7)
-					options_address = 0x1000, options_in_flash = false, options_size = 512;
-				break;
-			case 4:
-				options_address = 0x2000, options_in_flash = false;
-				break;
-			case 6:
-				options_size = 32;
-				options_address = CHIP_FLASH_SIZE - options_size;
-				break;
-		}
+/**
+ * Read a single byte from flash using JTAG mode
+ * Returns the byte value or 0xFF on error
+ */
+unsigned char rpc_readByteJTAG(unsigned long address, bool customBlock) {
+    if (!jtag) {
+        return 0xFF;
+    }
 
-		for (uint32_t a = options_address; a < options_address + options_size; a += sizeof(buffer))
-		{
-			jtag.readFlashICP(buffer, sizeof(buffer), a, !options_in_flash);
-			for (auto n : buffer)
-				serialWriteHex(n);
-			serialWrite("\r\n");
-		}
-#endif
+    uint8_t byte = 0xFF;
+    if (jtag->readFlashJTAG(&byte, 1, address, customBlock)) {
+        return byte;
+    }
+    return 0xFF;
+}
 
-		serialWrite("\r\nDumping flash memory:\r\n");
+/**
+ * Read 16 bytes from flash using ICP mode
+ * Stores data in global buffer and returns success status
+ */
+bool rpc_read16ICP(unsigned long address, bool customBlock) {
+    if (!jtag) {
+        return false;
+    }
+    return jtag->readFlashICP(buffer, 16, address, customBlock);
+}
 
-		// assign read method here or let it be chosen automatically
-		JTAG::readFlashMethod read_method = nullptr;
+/**
+ * Read 16 bytes from flash using JTAG mode
+ * Stores data in global buffer and returns success status
+ */
+bool rpc_read16JTAG(unsigned long address, bool customBlock) {
+    if (!jtag) {
+        return false;
+    }
+    return jtag->readFlashJTAG(buffer, 16, address, customBlock);
+}
 
-		if (!read_method)
-		{
-			// try to use each read method until some succeeds
-			const JTAG::readFlashMethod read_methods[] = {
-				&JTAG::readFlashICP,
-				&JTAG::readFlashJTAG,
-			};
-			for (const auto method : read_methods)
-			{
-				if ((jtag.*method)(buffer, sizeof(uint32_t), 0, false) && *(uint32_t*)buffer != 0)
-				{
-					// method succeed and reads reset/IE0 handlers expected at address 0
-					read_method = method;
-					break;
-				}
+/**
+ * Get byte from buffer at index
+ */
+unsigned char rpc_getBufferByte(unsigned char index) {
+    if (index < sizeof(buffer)) {
+        return buffer[index];
+    }
+    return 0xFF;
+}
 
-				// try another one
-			}
+/**
+ * Auto-detect the best flash read method
+ * Returns 0 for failure, 1 for ICP, 2 for JTAG
+ */
+unsigned char rpc_detectReadMethod() {
+    if (!jtag) {
+        return 0;
+    }
 
-			if (!read_method)
-				serialWrite("The flash memory is blank or protected by security bits\r\n");
-		}
+    // Try ICP method first
+    if (jtag->readFlashICP(buffer, 4, 0, false)) {
+        uint32_t* data = (uint32_t*)buffer;
+        if (*data != 0) {
+            return 1;  // ICP works
+        }
+    }
 
-		if (read_method)
-		{
-			for (uint32_t a = 0; a < CHIP_FLASH_SIZE; a += sizeof(buffer))
-			{
-				(jtag.*read_method)(buffer, sizeof(buffer), a, false);
-				for (auto n : buffer)
-					serialWriteHex(n);
-				serialWrite("\r\n");
-			}
-		}
+    // Try JTAG method
+    if (jtag->readFlashJTAG(buffer, 4, 0, false)) {
+        uint32_t* data = (uint32_t*)buffer;
+        if (*data != 0) {
+            return 2;  // JTAG works
+        }
+    }
 
-		serialWrite("\r\nDone!\r\n");
-	}
-	else
-	{
-		serialWrite("Connection failed\r\n");
-	}
+    return 0;  // Neither method works or flash is blank
+}
 
-	jtag.disconnect();
+/**
+ * Get the product block address based on chip configuration
+ * Returns the address or 0 if not applicable
+ */
+unsigned int rpc_getProductBlockAddress() {
+    switch (CHIP_CUSTOM_BLOCK) {
+        case 2:
+            return 0x0A00;
+        case 3:
+            return 0x1200;
+        case 4:
+            return 0x2200;
+        default:
+            return 0;
+    }
+}
+
+/**
+ * Get the code options address based on chip configuration
+ */
+unsigned int rpc_getCodeOptionsAddress() {
+    uint16_t options_size = 64;
+    uint16_t options_address = CHIP_FLASH_SIZE - options_size;
+
+    switch (CHIP_CUSTOM_BLOCK) {
+        case 2:
+            if (CHIP_TYPE == 2)
+                options_address = 0x0800;
+            break;
+        case 3:
+            if (CHIP_TYPE == 2)
+                options_address = 0x1000;
+            else if (CHIP_TYPE == 7)
+                options_address = 0x1000;
+            break;
+        case 4:
+            options_address = 0x2000;
+            break;
+        case 6:
+            options_size = 32;
+            options_address = CHIP_FLASH_SIZE - options_size;
+            break;
+    }
+
+    return options_address;
+}
+
+/**
+ * Get the code options size based on chip configuration
+ */
+unsigned int rpc_getCodeOptionsSize() {
+    uint16_t options_size = 64;
+
+    switch (CHIP_CUSTOM_BLOCK) {
+        case 3:
+            if (CHIP_TYPE == 7)
+                options_size = 512;
+            break;
+        case 6:
+            options_size = 32;
+            break;
+    }
+
+    return options_size;
+}
+
+/**
+ * Check if code options are in flash or custom block
+ */
+bool rpc_getCodeOptionsInFlash() {
+    bool options_in_flash = true;
+
+    switch (CHIP_CUSTOM_BLOCK) {
+        case 2:
+            if (CHIP_TYPE == 2)
+                options_in_flash = false;
+            break;
+        case 3:
+            if (CHIP_TYPE == 2 || CHIP_TYPE == 7)
+                options_in_flash = false;
+            break;
+        case 4:
+            options_in_flash = false;
+            break;
+    }
+
+    return options_in_flash;
+}
+
+/**
+ * Get chip type from configuration
+ */
+unsigned char rpc_getChipType() {
+    return CHIP_TYPE;
+}
+
+/**
+ * Get flash size from configuration
+ */
+unsigned long rpc_getFlashSize() {
+    return CHIP_FLASH_SIZE;
+}
+
+/**
+ * Get product block flag from configuration
+ */
+unsigned char rpc_getProductBlock() {
+    return CHIP_PRODUCT_BLOCK;
+}
+
+/**
+ * Get custom block type from configuration
+ */
+unsigned char rpc_getCustomBlock() {
+    return CHIP_CUSTOM_BLOCK;
+}
+
+// Arduino setup function
+void setup() {
+    // Initialize serial using Arduino's Serial object for SimpleRPC compatibility
+    Serial.begin(115200);
+    Serial.println(F("\r\nSinoWealth 8051-based MCU flash dumper (RPC mode)"));
+    Serial.println(F("Ready for commands"));
+}
+
+// Arduino loop function - handles RPC calls
+void loop() {
+    // SimpleRPC interface - automatically handles RPC calls
+    interface(
+        rpc_connect, "connect", "Connect to target device: @return: Success status.",
+        rpc_disconnect, "disconnect", "Disconnect from target device.",
+        rpc_checkICP, "checkICP", "Check if ICP mode is working: @return: True if ICP communication is successful.",
+        rpc_checkJTAG, "checkJTAG", "Check if JTAG mode is working: @return: True if JTAG communication is successful.",
+        rpc_getID, "getID", "Get JTAG ID code: @return: 16-bit ID code.",
+        rpc_pingICP, "pingICP", "Send ping to device in ICP mode.",
+        rpc_readByteICP, "readByteICP", "Read single byte via ICP: @address: Address. @customBlock: Custom block flag. @return: Byte value.",
+        rpc_readByteJTAG, "readByteJTAG", "Read single byte via JTAG: @address: Address. @customBlock: Custom block flag. @return: Byte value.",
+        rpc_read16ICP, "read16ICP", "Read 16 bytes via ICP to buffer: @address: Address. @customBlock: Custom block flag. @return: Success status.",
+        rpc_read16JTAG, "read16JTAG", "Read 16 bytes via JTAG to buffer: @address: Address. @customBlock: Custom block flag. @return: Success status.",
+        rpc_getBufferByte, "getBufferByte", "Get byte from buffer: @index: Buffer index. @return: Byte value.",
+        rpc_detectReadMethod, "detectReadMethod", "Auto-detect best read method: @return: 0=failed, 1=ICP, 2=JTAG.",
+        rpc_getProductBlockAddress, "getProductBlockAddress", "Get product block address: @return: Address or 0.",
+        rpc_getCodeOptionsAddress, "getCodeOptionsAddress", "Get code options address: @return: Address.",
+        rpc_getCodeOptionsSize, "getCodeOptionsSize", "Get code options size: @return: Size in bytes.",
+        rpc_getCodeOptionsInFlash, "getCodeOptionsInFlash", "Check if options in flash: @return: True if in flash.",
+        rpc_getChipType, "getChipType", "Get chip type: @return: Chip type.",
+        rpc_getFlashSize, "getFlashSize", "Get flash size: @return: Flash size in bytes.",
+        rpc_getProductBlock, "getProductBlock", "Get product block flag: @return: Product block flag.",
+        rpc_getCustomBlock, "getCustomBlock", "Get custom block type: @return: Custom block type."
+    );
+}
+
+// Main function for non-Arduino builds
+int main() {
+    init();  // Arduino initialization
+    setup();
+    while (true) {
+        loop();
+    }
+    return 0;
 }
