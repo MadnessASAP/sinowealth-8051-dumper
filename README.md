@@ -28,6 +28,21 @@ pio device monitor
 Before building, check the chip configuration in `include/config.h` and update it if needed. The parameters can be retrieved from Keil C51 definition files (*.opt, *.gpt) inside UV4 folder.
 
 ## How to use
-Connect D2-D5 pins and power rail of your Arduino Uno to corresponding JTAG pins of SinoWealth MCU and power the host up. You should immediately observe messages on the serial port (115200 baud).
+
+### Pin Connections
+Connect the following Arduino Uno pins to the corresponding JTAG pins of the SinoWealth MCU:
+- D2 (TDO) - JTAG TDO
+- D3 (TMS) - JTAG TMS
+- D4 (TDI) - JTAG TDI
+- D5 (TCK) - JTAG TCK
+- D6 (VREF) - Target MCU power supply (for voltage reference detection)
+- GND - Ground
+
+### Power Sequence
+The dumper now includes VREF detection to prevent powering the target via I/O leakage:
+1. Power up the Arduino Uno
+2. The dumper will wait for VREF (D6) to go high
+3. Manually enable power to the target MCU
+4. Once VREF is detected, the dumper will proceed with the connection sequence
 
 The host has to communicate with target MCU within few tens of milliseconds since powering up. Therefore, if you use one of Arduino boards, I recommend you to change bootloader to Optiboot to get rid of bootloader delay. If it's not enough, next thing to try is to set SUT fuses of ATmega MCU to 4.1ms pre-delay (65ms is the default).

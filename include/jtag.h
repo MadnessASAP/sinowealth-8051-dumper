@@ -37,6 +37,7 @@ public:
 	static const uint8_t TMS = 3;	// D3
 	static const uint8_t TDI = 4;	// D4
 	static const uint8_t TCK = 5;	// D5
+	static const uint8_t VREF = 6;	// D6
 
 	void connect();
 	void disconnect();
@@ -57,8 +58,8 @@ private:
 	{
 		ERROR = 0,
 		READY = 1,
-		ICP = 150,
-		JTAG = 165
+		ICP = 0x96,
+		JTAG = 0xA5
 	};
 
 	enum ICPCommand : uint8_t
