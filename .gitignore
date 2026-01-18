@@ -4,7 +4,6 @@
 .vscode/c_cpp_properties.json
 .vscode/launch.json
 .vscode/ipch
-compile_commands.json
 
 # Build artifacts
 *.o
@@ -22,3 +21,7 @@ compile_commands.json
 # OS
 .DS_Store
 Thumbs.db
+
+# LSP
+.cache/
+compile_commands.json
