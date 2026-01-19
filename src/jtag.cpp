@@ -19,7 +19,6 @@
 
 #include "config.h"
 #include "jtag.h"
-#include "serial.h"
 
 JTAG::JTAG()
 {
@@ -36,11 +35,9 @@ void JTAG::connect()
 	// Wait for Vref since we don't have reset pin - this is
 	// an alternative that does not require power switch/relay.
 	// TODO: Power cycle via high side switch/relay
-	serialWrite("Waiting for Vref to get high - enable power to target manually:\r\n");
 	while (!getBit(PIN_VREF)) {
 		_delay_us(100);
 	}
-	serialWrite("Vref is now high - resuming\r\n");
 
 	// Configure output pins after Vref check passes
 	DDRD |= _BV(PIN_TDI);

@@ -19,11 +19,6 @@
 
 // Arduino setup function
 void setup() {
-    // Initialize serial using Arduino's Serial object for SimpleRPC compatibility
-    Serial.begin(115200);
-    Serial.println(F("\r\nSinoWealth 8051-based MCU flash dumper (RPC mode)"));
-    Serial.println(F("Ready for commands"));
-
     rpc_init();
 }
 

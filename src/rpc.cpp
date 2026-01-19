@@ -25,7 +25,7 @@ static JTAG* jtag = nullptr;
 static uint8_t buffer[256] = {};  // Buffer for flash reads
 
 void rpc_init() {
-    // Initialization if needed
+    Serial.begin(115200);
 }
 
 bool rpc_connect() {
