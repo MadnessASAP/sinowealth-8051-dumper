@@ -25,3 +25,7 @@ Thumbs.db
 # LSP
 .cache/
 compile_commands.json
+
+# Python
+__pycache__/
+*.pyc
